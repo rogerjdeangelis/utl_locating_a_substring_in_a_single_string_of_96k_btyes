@@ -1,0 +1,2 @@
+# utl_locating_a_substring_in_a_single_string_of_96k_btyes
+Locating a substring in a single string or file of 96k btyes.  Keywords: sas sql join merge big data analytics macros oracle teradata mysql sas communities stackoverflow statistics artificial inteligence AI Python R Java Javascript WPS Matlab SPSS Scala Perl C C# Excel MS Access JSON graphics maps NLP natural language processing machine learning igraph DOSUBL DOW loop stackoverflow SAS community.
