@@ -1,6 +1,12 @@
 
 Locating a substring in a single string or file of 96k btyes
 
+
+see additiona solutions by me and Paul at end
+
+1. Paul: Additional SAS Solutions  (Paul Dorfman sashole@bellsouth.net)
+2. Roger: WPS/Python and WPS/R ir IML/R solutions
+
 This is a proof of concept. There are other ways to do this, ie stream input, but
 this maps the entire string to continuous memory.
 
@@ -136,5 +142,153 @@ data wrk.want;
 
 run;quit;
 ');
+
+
+
+*____             _
+|  _ \ __ _ _   _| |
+| |_) / _` | | | | |
+|  __/ (_| | |_| | |
+|_|   \__,_|\__,_|_|
+
+;
+
+
+Roger,
+
+Needless to say, I find your approach intriguing, and you've certainly
+provided the POC. My only minor gripes with it are:
+
+- hard on memory
+- uses a fair amount of hard coding
+- needs more flexible coding to handle arbitrary search strings
+
+Instead of committing the entire thing to memory, the goal can be
+achieved by searching 2 strings only:
+
+1. the input record itself
+2. the last N-1 bytes of the prior record concatenated with the
+first N-1 bytes of the current record
+
+Thus:
+
+%let RL = 32767 ; * infile record length ;
+
+filename temp temp lrecl=&RL ;
+
+data _null_;
+  file temp ;
+  length str $ &RL ;
+  retain src "ABCDEF" ;
+  do j = 1 to length (src) ;
+    str = repeat (char (src, j), &RL - 1) ;
+    put str ;
+  end ;
+run ;
+
+data _null_ ;
+  retain SF "EF" VL ; * SF:search-for string, VL: SF system length  ;
+  infile temp ;
+  input R $char&RL.. ;
+  if _n_ = 1 then do ;
+    SI = SF || SF     ; * set SI length to double SF ;
+    VL = vlength (SF) ; * set VL to SF system length ;
+  end ;
+  SI = substr (lag (R), &RL - VL + 1) || substr (R, VL - 1) ;
+  if find (R, SF) or find (SI, SF) then do ;
+    put SF "is found" ;
+    stop ;
+  end ;
+run ;
+
+Then there's another, programmatically simpler, unbuffered read input approach you've hinted at:
+
+data _null_ ;
+  retain SF "BBBCCC" SI ; * SF:search-for, SI:search-in ;
+  if _n_ = 1 then SI = translate (SF, "", SF) ;
+  infile temp recfm = N ;
+  input C $1. ;
+  if C in ("0d"x, "0a"x) then delete ;
+  SI = ifC (length (SI) < vlength (SI), cats (SI, C), cats (substr (SI, 2), C)) ;
+  if SI = SF then do ;
+    put SF "is found" ;
+    stop ;
+  end ;
+run ;
+
+Of course, the method is not devoid of its own shortcomings:
+
+- the hard coded CRLF characters will have to be re-coded under a different OS
+(though it can be made dependent on the system macro variable, such as  SYSSCP)
+- since it reads one byte at a time, it's likely to work slower
+
+Best regards,
+Paul Dorfman
+
+
+*____
+|  _ \ ___   __ _  ___ _ __
+| |_) / _ \ / _` |/ _ \ '__|
+|  _ < (_) | (_| |  __/ |
+|_| \_\___/ \__, |\___|_|
+            |___/
+;
+
+*            _   _
+ _ __  _   _| |_| |__   ___  _ __
+| '_ \| | | | __| '_ \ / _ \| '_ \
+| |_) | |_| | |_| | | | (_) | | | |
+| .__/ \__, |\__|_| |_|\___/|_| |_|
+|_|    |___/
+;
+
+%utl_submit_wps64("
+options set=PYTHONHOME 'C:\Progra~1\Python~1.5\';
+options set=PYTHONPATH 'C:\Progra~1\Python~1.5\lib\';
+libname sd1 'd:/sd1';
+proc python;
+submit;
+f = open('d:/txt/have.txt','r');
+string = f.read();
+print (string.find('AB'));
+endsubmit;
+run;quit;
+");
+
+
+0 offset;
+32766
+
+*____
+|  _ \
+| |_) |
+|  _ <
+|_| \_\
+
+;
+
+%utl_submit_wps64('
+options set=R_HOME "C:/Program Files/R/R-3.3.2";
+proc r;
+submit;
+source("C:/Program Files/R/R-3.3.2/etc/Rprofile.site", echo=T);
+library(readr);
+library(stringr);
+mystring <- read_file("d:/txt/have.txt");
+grepl("AB", mystring);
+str_locate(mystring, "AB");
+endsubmit;
+run;quit;
+');
+
+The WPS System
+
+1 Offset
+
+[1] TRUE
+     start   end
+[1,] 32767 32768
+
+
 
 
